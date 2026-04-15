@@ -1,5 +1,7 @@
+# 工作流名称
 name: Deploy to Cloudflare
 
+# 触发条件
 on:
   push:
     branches:
@@ -17,35 +19,24 @@ jobs:
       - name: Check for Cloudflare credentials
         id: cf_creds
         run: |
-          # 打印凭证，帮助调试
-          echo "CF_API_TOKEN=${{ secrets.CF_API_TOKEN }}"
-          echo "CF_ACCOUNT_ID=${{ secrets.CF_ACCOUNT_ID }}"
-
-          # 检查凭证是否存在
           if [ -z "${{ secrets.CF_API_TOKEN }}" ] || [ -z "${{ secrets.CF_ACCOUNT_ID }}" ]; then
             echo "Cloudflare credentials not found, skipping deployment."
-            echo "has_creds=false" >> $GITHUB_ENV  # 使用 GITHUB_ENV 传递环境变量
-            echo "::set-output name=has_creds::false"  # 使用 set-output 传递到 job 输出
+            echo "has_creds=false" >> $GITHUB_OUTPUT
           else
             echo "Cloudflare credentials found."
-            echo "has_creds=true" >> $GITHUB_ENV  # 使用 GITHUB_ENV 传递环境变量
-            echo "::set-output name=has_creds::true"  # 使用 set-output 传递到 job 输出
+            echo "has_creds=true" >> $GITHUB_OUTPUT
           fi
-          echo "has_creds=${{ steps.cf_creds.outputs.has_creds }}"  # 打印 has_creds 变量的值，用于调试
 
   # 部署 job，依赖于 check_credentials job 的结果
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
     needs: check_credentials # 依赖于上一个 job
-    if: needs.check_credentials.outputs.has_creds == 'true'  # 只有在密钥存在时才运行
+    if: needs.check_credentials.outputs.has_creds == 'true' # 只有在密钥存在时才运行
     steps:
       # 检出代码
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Debugging has_creds
-        run: echo "has_creds=${{ needs.check_credentials.outputs.has_creds }}"  # 打印 has_creds 的值
 
       # 设置 pnpm (版本由根目录 package.json 的 "packageManager" 字段决定)
       - name: Setup pnpm
@@ -60,6 +51,9 @@ jobs:
 
       # 安装依赖
       - name: Install dependencies
+        # 修复：添加 --no-frozen-lockfile 标志
+        # 这会告诉 pnpm 根据 package.json 的内容来安装依赖，即使 pnpm-lock.yaml 文件不是最新的。
+        # 这样就解决了在部署环境中因锁文件不同步导致的安装失败问题。
         run: pnpm install --no-frozen-lockfile
 
       # 运行构建
@@ -69,33 +63,12 @@ jobs:
       # 配置 Wrangler (替换占位符)
       - name: Configure Wrangler
         run: |
-          # 打印环境变量，调试输出
-          echo "D1_DATABASE_ID=${D1_DATABASE_ID}"
-          echo "D1_DATABASE_NAME=${D1_DATABASE_NAME}"
-          echo "EMAIL_DOMAIN=${EMAIL_DOMAIN}"
-          echo "COOKIES_SECRET=${COOKIES_SECRET}"
-          echo "TURNSTILE_KEY=${TURNSTILE_KEY}"
-          echo "TURNSTILE_SECRET=${TURNSTILE_SECRET}"
-
-          # 替换 wrangler.toml 中的占位符
-          if [ -n "${D1_DATABASE_ID}" ]; then
-            sed -i "s#\${D1_DATABASE_ID}#${D1_DATABASE_ID}#g" wrangler.toml
-          fi
-          if [ -n "${D1_DATABASE_NAME}" ]; then
-            sed -i "s#\${D1_DATABASE_NAME}#${D1_DATABASE_NAME}#g" wrangler.toml
-          fi
-          if [ -n "${EMAIL_DOMAIN}" ]; then
-            sed -i "s#\${EMAIL_DOMAIN}#${EMAIL_DOMAIN}#g" wrangler.toml
-          fi
-          if [ -n "${COOKIES_SECRET}" ]; then
-            sed -i "s#\${COOKIES_SECRET}#${COOKIES_SECRET}#g" wrangler.toml
-          fi
-          if [ -n "${TURNSTILE_KEY}" ]; then
-            sed -i "s#\${TURNSTILE_KEY}#${TURNSTILE_KEY}#g" wrangler.toml
-          fi
-          if [ -n "${TURNSTILE_SECRET}" ]; then
-            sed -i "s#\${TURNSTILE_SECRET}#${TURNSTILE_SECRET}#g" wrangler.toml
-          fi
+          sed -i "s#\${D1_DATABASE_ID}#${D1_DATABASE_ID}#g" wrangler.toml
+          sed -i "s#\${D1_DATABASE_NAME}#${D1_DATABASE_NAME}#g" wrangler.toml
+          sed -i "s#\${EMAIL_DOMAIN}#${EMAIL_DOMAIN}#g" wrangler.toml
+          sed -i "s#\${COOKIES_SECRET}#${COOKIES_SECRET}#g" wrangler.toml
+          sed -i "s#\${TURNSTILE_KEY}#${TURNSTILE_KEY}#g" wrangler.toml
+          sed -i "s#\${TURNSTILE_SECRET}#${TURNSTILE_SECRET}#g" wrangler.toml
           if [ -n "${PASSWORD}" ]; then
             sed -i "s#\${PASSWORD}#${PASSWORD}#g" wrangler.toml
           else
@@ -123,6 +96,7 @@ jobs:
           SHOW_AFF: ${{ secrets.SHOW_AFF }}
       
       # 新增：在部署前应用 D1 数据库迁移
+      # 这一步会明确地告诉 Wrangler 远程执行 D1 数据库的迁移脚本。
       - name: Apply D1 Migrations
         run: npx wrangler d1 migrations apply ${{ secrets.D1_DATABASE_NAME }} --remote
         env:
