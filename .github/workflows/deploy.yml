@@ -21,10 +21,10 @@ jobs:
         run: |
           if [ -z "${{ secrets.CF_API_TOKEN }}" ] || [ -z "${{ secrets.CF_ACCOUNT_ID }}" ]; then
             echo "Cloudflare credentials not found, skipping deployment."
-            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "has_creds=false" >> $GITHUB_ENV  # 改为使用 $GITHUB_ENV 输出环境变量
           else
             echo "Cloudflare credentials found."
-            echo "has_creds=true" >> $GITHUB_OUTPUT
+            echo "has_creds=true" >> $GITHUB_ENV  # 使用 $GITHUB_ENV 输出环境变量
           fi
 
   # 部署 job，依赖于 check_credentials job 的结果
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy
     needs: check_credentials # 依赖于上一个 job
-    if: needs.check_credentials.outputs.has_creds == 'true' # 只有在密钥存在时才运行
+    if: env.has_creds == 'true' # 只有在密钥存在时才运行
     steps:
       # 检出代码
       - name: Checkout
@@ -63,12 +63,33 @@ jobs:
       # 配置 Wrangler (替换占位符)
       - name: Configure Wrangler
         run: |
-          sed -i "s#\${D1_DATABASE_ID}#${D1_DATABASE_ID}#g" wrangler.toml
-          sed -i "s#\${D1_DATABASE_NAME}#${D1_DATABASE_NAME}#g" wrangler.toml
-          sed -i "s#\${EMAIL_DOMAIN}#${EMAIL_DOMAIN}#g" wrangler.toml
-          sed -i "s#\${COOKIES_SECRET}#${COOKIES_SECRET}#g" wrangler.toml
-          sed -i "s#\${TURNSTILE_KEY}#${TURNSTILE_KEY}#g" wrangler.toml
-          sed -i "s#\${TURNSTILE_SECRET}#${TURNSTILE_SECRET}#g" wrangler.toml
+          # 打印环境变量，调试输出
+          echo "D1_DATABASE_ID=${D1_DATABASE_ID}"
+          echo "D1_DATABASE_NAME=${D1_DATABASE_NAME}"
+          echo "EMAIL_DOMAIN=${EMAIL_DOMAIN}"
+          echo "COOKIES_SECRET=${COOKIES_SECRET}"
+          echo "TURNSTILE_KEY=${TURNSTILE_KEY}"
+          echo "TURNSTILE_SECRET=${TURNSTILE_SECRET}"
+
+          # 替换 wrangler.toml 中的占位符
+          if [ -n "${D1_DATABASE_ID}" ]; then
+            sed -i "s#\${D1_DATABASE_ID}#${D1_DATABASE_ID}#g" wrangler.toml
+          fi
+          if [ -n "${D1_DATABASE_NAME}" ]; then
+            sed -i "s#\${D1_DATABASE_NAME}#${D1_DATABASE_NAME}#g" wrangler.toml
+          fi
+          if [ -n "${EMAIL_DOMAIN}" ]; then
+            sed -i "s#\${EMAIL_DOMAIN}#${EMAIL_DOMAIN}#g" wrangler.toml
+          fi
+          if [ -n "${COOKIES_SECRET}" ]; then
+            sed -i "s#\${COOKIES_SECRET}#${COOKIES_SECRET}#g" wrangler.toml
+          fi
+          if [ -n "${TURNSTILE_KEY}" ]; then
+            sed -i "s#\${TURNSTILE_KEY}#${TURNSTILE_KEY}#g" wrangler.toml
+          fi
+          if [ -n "${TURNSTILE_SECRET}" ]; then
+            sed -i "s#\${TURNSTILE_SECRET}#${TURNSTILE_SECRET}#g" wrangler.toml
+          fi
           if [ -n "${PASSWORD}" ]; then
             sed -i "s#\${PASSWORD}#${PASSWORD}#g" wrangler.toml
           else
