@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy
     needs: check_credentials # 依赖于上一个 job
-    if: env.has_creds == 'true' # 只有在密钥存在时才运行
+    if: needs.check_credentials.outputs.has_creds == 'true' # 只有在密钥存在时才运行
     steps:
       # 检出代码
       - name: Checkout
