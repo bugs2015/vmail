@@ -115,7 +115,7 @@ const turnstile = async (c, next) => {
   params.append('secret', c.env.TURNSTILE_SECRET);
   params.append('response', token);
   if (ip) {
-    params.append('remoteip', ip);
+    params。append('remoteip', ip);
   }
 
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -141,7 +141,7 @@ const api = app.basePath('/api');
 
 // feat: 新增一个专门用于人机验证的接口。
 // 前端应在生成邮箱地址前先调用此接口。
-api.post('/verify', turnstile, async (c) => {
+api。post('/verify'， turnstile, async (c) => {
   if (!isTurnstileEnabled(c.env)) {
     const db = getD1DB(c.env.DB);
     await incrementAddressesCreated(db);
@@ -169,7 +169,7 @@ function generateApiKey(): string {
 }
 
 // 创建 API Key 接口（需要 Turnstile 验证）
-api.post('/api-keys', turnstile, async (c) => {
+api。post('/api-keys'， turnstile， async (c) => {
   const db = getD1DB(c.env.DB);
   const body = c.get('parsedBody') as { name?: string };
 
@@ -281,6 +281,13 @@ api.post('/delete-emails', async (c) => {
     return c.json(result);
 });
 
+// 获取邮箱密码
+api.get('/mailboxes/:id/password', async (c) => {
+  const mailbox = await findMailboxById(db, id);
+  const password = encrypt(mailbox.address, c.env.COOKIES_SECRET);
+  return c.json({ data: { password } });
+});
+
 // 修复：移除登录接口的 turnstile 中间件，使其不再需要人机验证。
 api.post('/login', async (c) => {
   // const db = getD1DB(c.env.DB); // 数据库连接不再需要用于验证
@@ -321,6 +328,8 @@ api.post('/login', async (c) => {
 });
 
 
+
+
 // 前端配置接口
 app.get('/config', (c) => {
   // feat: 将 emailDomain 拆分为数组以支持多域名
@@ -328,7 +337,7 @@ app.get('/config', (c) => {
   const turnstileEnabled = isTurnstileEnabled(c.env);
 
   return c.json({
-    emailDomain: emailDomain, // 返回域名数组
+    emailDomain: emailDomain， // 返回域名数组
     turnstileKey: c.env.TURNSTILE_KEY,
     turnstileEnabled,
     cookiesSecret: c.env.COOKIES_SECRET,
@@ -339,7 +348,7 @@ app.get('/config', (c) => {
 });
 
 // 站点统计数据接口（公开）
-api.get('/stats', async (c) => {
+api。get('/stats', async (c) => {
   const cache = caches.default;
   const cacheKey = new Request(c.req.url, c.req.raw);
   const cached = await cache.match(cacheKey);
@@ -382,7 +391,7 @@ app.post('/auth/unlock', async (c) => {
     return c.json({ message: 'Invalid password' }, 401);
   }
 
-  c.header(
+  c。header(
     'Set-Cookie',
     `${SITE_AUTH_COOKIE}=1; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure`,
   );
@@ -390,7 +399,7 @@ app.post('/auth/unlock', async (c) => {
   return c.json({ success: true });
 });
 
-app.get('/auth/status', (c) => {
+app。get('/auth/status', (c) => {
   const unlocked = isSiteUnlocked(c.req.raw, c.env);
   return c.json({
     unlocked,
