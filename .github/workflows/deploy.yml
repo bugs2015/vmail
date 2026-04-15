@@ -19,12 +19,17 @@ jobs:
       - name: Check for Cloudflare credentials
         id: cf_creds
         run: |
+          # 打印凭证，帮助调试
+          echo "CF_API_TOKEN=${{ secrets.CF_API_TOKEN }}"
+          echo "CF_ACCOUNT_ID=${{ secrets.CF_ACCOUNT_ID }}"
+
+          # 检查凭证是否存在
           if [ -z "${{ secrets.CF_API_TOKEN }}" ] || [ -z "${{ secrets.CF_ACCOUNT_ID }}" ]; then
             echo "Cloudflare credentials not found, skipping deployment."
-            echo "has_creds=false" >> $GITHUB_ENV  # 改为使用 $GITHUB_ENV 输出环境变量
+            echo "has_creds=false" >> $GITHUB_ENV  # 使用 GITHUB_ENV 传递环境变量
           else
             echo "Cloudflare credentials found."
-            echo "has_creds=true" >> $GITHUB_ENV  # 使用 $GITHUB_ENV 输出环境变量
+            echo "has_creds=true" >> $GITHUB_ENV  # 使用 GITHUB_ENV 传递环境变量
           fi
 
   # 部署 job，依赖于 check_credentials job 的结果
@@ -51,9 +56,6 @@ jobs:
 
       # 安装依赖
       - name: Install dependencies
-        # 修复：添加 --no-frozen-lockfile 标志
-        # 这会告诉 pnpm 根据 package.json 的内容来安装依赖，即使 pnpm-lock.yaml 文件不是最新的。
-        # 这样就解决了在部署环境中因锁文件不同步导致的安装失败问题。
         run: pnpm install --no-frozen-lockfile
 
       # 运行构建
@@ -117,7 +119,6 @@ jobs:
           SHOW_AFF: ${{ secrets.SHOW_AFF }}
       
       # 新增：在部署前应用 D1 数据库迁移
-      # 这一步会明确地告诉 Wrangler 远程执行 D1 数据库的迁移脚本。
       - name: Apply D1 Migrations
         run: npx wrangler d1 migrations apply ${{ secrets.D1_DATABASE_NAME }} --remote
         env:
