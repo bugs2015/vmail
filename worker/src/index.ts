@@ -281,13 +281,6 @@ api.post('/delete-emails', async (c) => {
     return c.json(result);
 });
 
-// 获取邮箱密码
-api.get('/mailboxes/:id/password', async (c) => {
-  const mailbox = await findMailboxById(db, id);
-  const password = encrypt(mailbox.address, c.env.COOKIES_SECRET);
-  return c.json({ data: { password } });
-});
-
 // 修复：移除登录接口的 turnstile 中间件，使其不再需要人机验证。
 api.post('/login', async (c) => {
   // const db = getD1DB(c.env.DB); // 数据库连接不再需要用于验证
