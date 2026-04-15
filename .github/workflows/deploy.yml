@@ -1,7 +1,5 @@
-# 工作流名称
 name: Deploy to Cloudflare
 
-# 触发条件
 on:
   push:
     branches:
@@ -27,11 +25,13 @@ jobs:
           if [ -z "${{ secrets.CF_API_TOKEN }}" ] || [ -z "${{ secrets.CF_ACCOUNT_ID }}" ]; then
             echo "Cloudflare credentials not found, skipping deployment."
             echo "has_creds=false" >> $GITHUB_ENV  # 使用 GITHUB_ENV 传递环境变量
+            echo "::set-output name=has_creds::false"  # 使用 set-output 传递到 job 输出
           else
             echo "Cloudflare credentials found."
             echo "has_creds=true" >> $GITHUB_ENV  # 使用 GITHUB_ENV 传递环境变量
+            echo "::set-output name=has_creds::true"  # 使用 set-output 传递到 job 输出
           fi
-          echo "has_creds=${{ env.has_creds }}"  # 打印 has_creds 变量的值，用于调试
+          echo "has_creds=${{ steps.cf_creds.outputs.has_creds }}"  # 打印 has_creds 变量的值，用于调试
 
   # 部署 job，依赖于 check_credentials job 的结果
   deploy:
